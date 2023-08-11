@@ -57,17 +57,22 @@ func serve(html []byte, port int) {
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
-func main() {
+// Parse the command line arguments.
+func parseArgs() (string, int) {
 	pFlag := flag.Int("p", 8080, "port (default: 8080)")
 	flag.Parse()
 
 	if len(flag.Args()) != 1 {
 		fmt.Printf("Usage: %s [-p port] file.md\n", os.Args[0])
-		return
+		os.Exit(0)
 	}
 
-	path := flag.Arg(0)
-	port := *pFlag
+	return flag.Arg(0), *pFlag
+
+}
+
+func main() {
+	path, port := parseArgs()
 
 	md, err := os.ReadFile(path)
 	if err != nil {
