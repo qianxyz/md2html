@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -44,23 +45,29 @@ func convert(md []byte, client *http.Client) ([]byte, error) {
 }
 
 // Serve the html string.
-func serve(html []byte) {
-	fmt.Println("Serving at http://0.0.0.0:8080 ...")
+func serve(html []byte, port int) {
+	fmt.Printf("Serving at http://0.0.0.0:%d ...\n", port)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Write(html)
 	})
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	addr := fmt.Sprintf(":%d", port)
+	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Printf("Usage: %s file.md\n", os.Args[0])
+	pFlag := flag.Int("p", 8080, "port (default: 8080)")
+	flag.Parse()
+
+	if len(flag.Args()) != 1 {
+		fmt.Printf("Usage: %s [-p port] file.md\n", os.Args[0])
 		return
 	}
 
-	path := os.Args[1]
+	path := flag.Arg(0)
+	port := *pFlag
 
 	md, err := os.ReadFile(path)
 	if err != nil {
@@ -73,5 +80,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	serve(html)
+	serve(html, port)
 }
