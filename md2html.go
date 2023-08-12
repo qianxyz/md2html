@@ -9,14 +9,15 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/fsnotify/fsnotify"
 )
 
 var (
 	// The HTML string to be rendered.
-	// TODO: Add lock
 	rendered []byte
+	mu       sync.RWMutex
 
 	// The path of the Markdown file.
 	mdPath string
@@ -75,7 +76,10 @@ func update() {
 		log.Fatal(err)
 	}
 
+	mu.Lock()
 	rendered = respBody
+	mu.Unlock()
+
 	log.Printf("HTML updated at http://0.0.0.0:%d\n", port)
 }
 
@@ -83,6 +87,8 @@ func update() {
 func serve() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
+		mu.RLock()
+		defer mu.RUnlock()
 		w.Write(rendered)
 	})
 
