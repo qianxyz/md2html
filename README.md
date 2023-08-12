@@ -8,7 +8,7 @@ with live preview.
 ## Quickstart
 
 ```shell
-$ go get github.com/qianxyz/md2html@latest
+$ go install github.com/qianxyz/md2html@latest
 $ md2html
 Usage: md2html [-p port] file.md
 ```
