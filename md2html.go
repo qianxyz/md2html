@@ -41,21 +41,21 @@ var jsCode = `
 let socket = new WebSocket("ws://0.0.0.0:%d/ws");
 
 socket.onmessage = function(event) {
-    if (event.data === "reload") {
-	location.reload();
-    }
+  if (event.data === "reload") {
+    location.reload();
+  }
 };
 
 socket.onerror = function(event) {
-    console.error("WebSocket error observed:", event);
+  console.error("WebSocket error observed:", event);
 };
 
 socket.onclose = function(event) {
-    if (event.wasClean) {
-	console.log('Closed cleanly, code=' + event.code + ', reason=' + event.reason);
-    } else {
-	console.error('Connection died');
-    }
+  if (event.wasClean) {
+    console.log('Closed cleanly, code=' + event.code + ', reason=' + event.reason);
+  } else {
+    console.error('Connection died');
+  }
 };
 </script>
 `
