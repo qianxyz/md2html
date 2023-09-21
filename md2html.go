@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/gorilla/websocket"
 )
 
 var (
@@ -26,6 +27,38 @@ var (
 
 	client = &http.Client{}
 )
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
+var clients = make(map[*websocket.Conn]bool) // Keep track of connected clients
+
+var jsCode = `
+<script>
+let socket = new WebSocket("ws://0.0.0.0:%d/ws");
+
+socket.onmessage = function(event) {
+    if (event.data === "reload") {
+	location.reload();
+    }
+};
+
+socket.onerror = function(event) {
+    console.error("WebSocket error observed:", event);
+};
+
+socket.onclose = function(event) {
+    if (event.wasClean) {
+	console.log('Closed cleanly, code=' + event.code + ', reason=' + event.reason);
+    } else {
+	console.error('Connection died');
+    }
+};
+</script>
+`
 
 func init() {
 	pFlag := flag.Int("p", 8080, "port (default: 8080)")
@@ -80,6 +113,15 @@ func update() {
 	rendered = respBody
 	mu.Unlock()
 
+	// Notify all connected clients to refresh their pages
+	for client := range clients {
+		if err := client.WriteMessage(websocket.TextMessage, []byte("reload")); err != nil {
+			log.Println("Websocket error:", err)
+			client.Close()
+			delete(clients, client)
+		}
+	}
+
 	log.Printf("HTML updated at http://0.0.0.0:%d\n", port)
 }
 
@@ -90,6 +132,34 @@ func serve() {
 		mu.RLock()
 		defer mu.RUnlock()
 		w.Write(rendered)
+
+		// Embed js
+		w.Write([]byte(fmt.Sprintf(jsCode, port)))
+	})
+
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		// Upgrade the HTTP connection to a WebSocket connection
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Println("Failed to upgrade ws:", err)
+			return
+		}
+		defer conn.Close()
+
+		// Add this client to our global clients map
+		clients[conn] = true
+
+		// Keep this goroutine active to listen to incoming messages
+		// (we don't expect any, but it's generally good practice)
+		for {
+			messageType, _, err := conn.ReadMessage()
+			if err != nil {
+				log.Println("Error during message reading:", err)
+				delete(clients, conn)
+				break
+			}
+			log.Printf("Received a message of type %d\n", messageType)
+		}
 	})
 
 	addr := fmt.Sprintf(":%d", port)
